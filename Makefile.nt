@@ -1,0 +1,85 @@
+#----------------------------------------------------------------------
+# MQL Perl Module Makefile for Win32
+#----------------------------------------------------------------------
+# Critical Variables to set below:
+#
+# MATRIXHOME   - Location of the core Matrix One software
+# TOOLS        - Base dir of the Visual C++ compiler
+# SWIG         - Explict path to the SWIG executable
+# PERL_INCLUDE - Path to Perl header files (note version)
+# PERL_LIB     - Explicit path to the Perl static library (note version)
+# PERL_SITE    - Base path to where Perl modules are installed
+#----------------------------------------------------------------------
+
+SRCS      = mql.c
+IFILE     = mql
+INTERFACE = $(IFILE).h
+WRAPFILE  = $(IFILE)_wrap.c
+SWIGOPT   = 
+
+# Matrix Variables
+MATRIXHOME  = C:\eMatrix9
+MQL_INC     = -I$(MATRIXHOME)\lib\winnt
+MQL_LIB     = -LIBPATH:$(MATRIXHOME)\lib\winnt mqlio32.lib
+
+# Location of the Visual C++ tools (32 bit assumed)
+TOOLS       = C:\Program Files\Microsoft Visual Studio\VC98
+TARGET      = $(IFILE).dll
+CC          = cl.exe
+LINK        = link.exe
+INCLUDE32   = -I$(TOOLS)\include
+MACHINE     = IX86
+
+# C Library needed to build a DLL
+DLLIBC = msvcrt.lib oldnames.lib
+
+# Windows libraries that are apparently needed
+WINLIB = kernel32.lib advapi32.lib user32.lib gdi32.lib comdlg32.lib winspool.lib
+
+# Libraries common to all DLLs
+LIBS = $(MQL_LIB) $(DLLIBC) $(WINLIB)
+
+# Linker options
+LOPT = -debug:full -debugtype:cv /NODEFAULTLIB /RELEASE /NOLOGO /MACHINE:$(MACHINE) -entry:_DllMainCRTStartup@12 -dll
+
+# C compiler flags
+CFLAGS = /Z7 /Od /c /W3 /nologo
+
+# SWIG Installation
+SWIG      = c:\swig-1.3.13\swig
+
+# Now munge the files provided
+# SRCS     = list of source files
+# WRAPFILE = Outfile file for SWIG
+SRCS         = $(SRCS) $(WRAPFILE)
+OBJS         = $(SRCS:.cpp=.obj) 
+OBJS         = $(OBJS:.c=.obj)
+OBJS         = $(OBJS:/Tp=)
+
+
+# Perl Settings
+PERL_INCLUDE = -IC:\perl\5.6.1\lib\MSWin32-x86\CORE
+PERLLIB      = C:\perl\5.6.1\lib\MSWin32-x86\CORE\perl56.lib
+PERLFLAGS    = /DWIN32 /DMSWIN32 /DWIN32IO_IS_STDIO
+PERLSITE     = C:\perl\site\5.6.1
+PERLAUTO     = $(PERLSITE)\lib\MSWin32-x86\auto\$(IFILE)
+
+perl::
+	$(SWIG) $(SWIGOPT) -perl5 -o $(WRAPFILE) $(INTERFACE)
+	$(CC) $(CFLAGS) $(PERLFLAGS) $(MQL_INC) $(PERL_INCLUDE) $(SRCS)
+	set LIB=$(TOOLS)\lib
+	$(LINK) $(OBJS) $(LOPT) -out:$(TARGET) $(LIBS) $(PERLLIB)
+
+
+
+install::
+	copy $(IFILE).pm $(PERLSITE)\lib
+	if not exist $(PERLAUTO) mkdir $(PERLAUTO)
+	copy $(IFILE).dll $(PERLAUTO)
+	copy $(IFILE).lib $(PERLAUTO)
+	copy $(IFILE).exp $(PERLAUTO)
+
+
+clean::
+	del /f *_wrap* *.obj *.lib *.dll *.exp *.pdb *.pm
+

@@ -1,0 +1,97 @@
+#----------------------------------------------------------------------
+# MQL.pm Makefile
+# Uses SWIG to build an Matrix One MQLIO Module for Perl
+#----------------------------------------------------------------------
+# Depends on the following environment variables:
+# MATRIXHOME - The base directory where eMatrix is installed
+# SWIG       - The full path to the SWIG executable
+# PERL       - The full path to the Perl executable
+#----------------------------------------------------------------------
+SRCS       = mql.c mql_wrap.c
+IFILE      = mql
+INTERFACE  = $(IFILE).h
+WRAPFILE   = $(IFILE)_wrap.c
+
+PLATFORM   = solaris4
+
+SRCDIR     = $(PWD)
+TARGET     = MQL.so
+OBJS       = mql.o mql_wrap.o
+
+
+#----------------------------------------------------------------------
+# Compiler and Platform Specific Stuff
+#----------------------------------------------------------------------
+CC          = gcc
+CC_PICFLAG  = -shared
+LD_PICFLAG  = -G
+
+CFLAGS	    = 
+OFLAG       = -O
+
+
+
+#----------------------------------------------------------------------
+# Perl Settings
+#----------------------------------------------------------------------
+PERL_DIR     = /usr/local/perl
+PERL_INCLUDE = -I$(PERL_DIR)/lib/5.6.1/sun4-solaris/CORE
+PERL_LIB     = $(PERL_DIR)/lib/5.6.1/sun4-solaris/CORE/libperl.a
+PERL_FLAGS   =
+PERL_SITE    = $(PERL_DIR)/lib/site_perl/5.6.1
+PERL_AUTO    = $(PERL_SITE)/sun4-solaris/auto/MQL
+
+
+
+#----------------------------------------------------------------------
+# Compile
+#----------------------------------------------------------------------
+MATRIX_INCLUDE  = -I$(MATRIXHOME)/lib/$(PLATFORM)
+
+%.o:	$(SRCDIR)/%.c
+	$(CC) $(CC_PICFLAG) $(CFLAGS) $(OFLAG) \
+	$(PERL_INCLUDE) $(MATRIX_INCLUDE) -c  $<
+
+
+
+#----------------------------------------------------------------------
+# Link
+#----------------------------------------------------------------------
+MATRIX_LIBS = $(MATRIXHOME)/lib/$(PLATFORM)/mqlio32-64s.o
+SYSLIBS     = -lm -lsocket -lnsl
+
+$(TARGET): Makefile.solaris $(OBJS)
+	$(CC) $(LD_PICFLAG) $(LDFLAGS) $(OBJS) \
+	$(MATRIX_LIBS) $(SYSLIBS) -o $@
+
+
+
+#----------------------------------------------------------------------
+# SWIG - Build Wrapper
+#----------------------------------------------------------------------
+SWIGOPTS = -perl5
+
+swig:
+	$(SWIG) $(SWIGOPTS) -o $(WRAPFILE) $(INTERFACE)
+
+
+
+#----------------------------------------------------------------------
+# Install in Perl distribution
+#----------------------------------------------------------------------
+install:
+	cp MQL.pm $(PERL_SITE)
+	if [ ! -d $(PERL_AUTO) ]; then mkdir $(PERL_AUTO); fi
+	cp MQL.so $(PERL_AUTO)
+	touch $(PERL_AUTO)/MQL.bs
+	chmod a+r  $(PERL_SITE)/MQL.pm
+	chmod a+rx $(PERL_AUTO)/MQL.so
+	chmod a+rx $(PERL_AUTO)/MQL.bs
+
+
+
+#----------------------------------------------------------------------
+# Clean up
+#----------------------------------------------------------------------
+clean:
+	rm -f *_wrap* *.o *.so *.doc MQL.pm core

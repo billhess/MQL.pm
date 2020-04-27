@@ -1,0 +1,92 @@
+#----------------------------------------------------------------------
+# MQL.pm Makefile
+# Uses SWIG to build an Matrix One MQLIO Module for Perl
+#----------------------------------------------------------------------
+# Depends on the following environment variables:
+# MATRIXHOME - The base directory where eMatrix is installed
+# SWIG       - The full path to the SWIG executable
+# PERL       - The full path to the Perl executable
+#----------------------------------------------------------------------
+SRCS       = mql.c mql_wrap.c
+IFILE      = mql
+INTERFACE  = $(IFILE).h
+WRAPFILE   = $(IFILE)_wrap.c
+
+PLATFORM   = hp9000s800
+
+SRCDIR     = $(PWD)
+TARGET     = MQL.sl
+OBJS       = mql.o mql_wrap.o
+
+
+#----------------------------------------------------------------------
+# Compiler and Platform Specific Stuff
+#----------------------------------------------------------------------
+MATRIX_INCLUDE  = -I$(MATRIXHOME)/lib/$(PLATFORM)
+MATRIX_LIBS     = $(MATRIXHOME)/lib/$(PLATFORM)/mqlio32-64s.o
+SYSLIBS         = -lm -lnsl
+
+CC          = cc
+LD          = ld
+CFLAGS	    = +z -Ae -D_HPUX_SOURCE +DA1.1 -O $(MATRIX_INCLUDE) $(PERL_INCLUDE)
+LDFLAGS     = -b $(MATRIX_LIBS) $(SYSLIBS) 
+
+
+
+#----------------------------------------------------------------------
+# Perl Settings
+#----------------------------------------------------------------------
+PERL_DIR     = /usr/local/jci/perl
+PERL_INCLUDE = -I$(PERL_DIR)/lib/5.6.1/PA-RISC2.0/CORE
+PERL_LIB     = $(PERL_DIR)/lib/5.6.1/PA-RISC2.0/CORE/libperl.a
+PERL_FLAGS   =
+PERL_SITE    = $(PERL_DIR)/lib/site_perl/5.6.1
+PERL_AUTO    = $(PERL_SITE)/PA-RISC2.0/auto/MQL
+
+
+
+#----------------------------------------------------------------------
+# Compile
+#----------------------------------------------------------------------
+%.o: $(SRCDIR)/%.c
+	$(CC) $(CFLAGS) -c $<
+
+
+
+#----------------------------------------------------------------------
+# Link
+#----------------------------------------------------------------------
+$(TARGET): Makefile.hpux $(OBJS)
+	$(LD) $(LDFLAGS) $(OBJS) -o $@
+
+
+
+#----------------------------------------------------------------------
+# SWIG - Build Wrapper
+#----------------------------------------------------------------------
+SWIGOPTS = -perl5
+
+swig:
+	$(SWIG) $(SWIGOPTS) -o $(WRAPFILE) $(INTERFACE)
+
+
+
+#----------------------------------------------------------------------
+# Install in Perl distribution
+#----------------------------------------------------------------------
+install:
+	cp MQL.pm $(PERL_SITE)
+	if [ ! -d $(PERL_AUTO) ]; then mkdir $(PERL_AUTO); fi
+	cp MQL.sl $(PERL_AUTO)
+	touch $(PERL_AUTO)/MQL.bs
+	chmod a+r  $(PERL_SITE)/MQL.pm
+	chmod a+rx $(PERL_AUTO)/MQL.sl
+	chmod a+rx $(PERL_AUTO)/MQL.bs
+
+
+
+#----------------------------------------------------------------------
+# Clean up
+#----------------------------------------------------------------------
+clean:
+	rm -f *_wrap* *.o *.sl *.doc MQL.pm core

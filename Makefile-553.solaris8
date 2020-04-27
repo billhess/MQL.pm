@@ -1,0 +1,86 @@
+#----------------------------------------------------------------------
+# eMatrix Makefile
+# Uses SWIG to build an Matrix One MQLIO Module for Perl
+#----------------------------------------------------------------------
+SRCS       = mql.c mql_wrap.c
+IFILE      = mql
+INTERFACE  = $(IFILE).h
+WRAPFILE   = $(IFILE)_wrap.c
+MATRIXHOME = /app/matrixone/ematrix
+PLATFORM   = solaris4
+SWIG       = /usr/local/swig/bin/swig
+SWIGOPTS   = -perl5
+
+SRCDIR     = $(PWD)
+TARGET     = MQL.so
+OBJS       = mql.o mql_wrap.o
+
+
+#----------------------------------------------------------------------
+# Compiler and Platform Specific Stuff
+#----------------------------------------------------------------------
+CC          = gcc
+CC_PICFLAG  = -shared
+LD_PICFLAG  = -G
+
+CFLAGS	    = 
+OFLAG       = -O
+
+
+
+#----------------------------------------------------------------------
+# Perl Settings
+#----------------------------------------------------------------------
+PERL_DIR     = /usr/perl5
+PERL_INCLUDE = -I$(PERL_DIR)/5.00503/sun4-solaris/CORE
+PERL_LIB     = $(PERL_DIR)/5.00503/sun4-solaris/CORE/libperl.so
+PERL_FLAGS   =
+PERL_SITE    = $(PERL_DIR)/site_perl/5.005
+PERL_AUTO    = $(PERL_SITE)/sun4-solaris/auto/MQL
+
+
+
+#----------------------------------------------------------------------
+# Compile
+#----------------------------------------------------------------------
+MATRIX_INCLUDE  = -I$(MATRIXHOME)/lib/$(PLATFORM)
+
+%.o:	$(SRCDIR)/%.c
+	$(CC) $(CC_PICFLAG) $(CFLAGS) $(OFLAG) \
+	$(PERL_INCLUDE) $(MATRIX_INCLUDE) -c  $<
+
+
+
+#----------------------------------------------------------------------
+# Link
+#----------------------------------------------------------------------
+MATRIX_LIBS = $(MATRIXHOME)/lib/$(PLATFORM)/mqlio32-64s.o
+SYSLIBS     = -lm -lsocket -lnsl
+
+$(TARGET): Makefile $(OBJS)
+	$(CC) $(LD_PICFLAG) $(LDFLAGS) $(OBJS) $(MATRIX_LIBS) \
+	$(PERL_LIB) $(SYSLIBS) -o $@
+
+
+#----------------------------------------------------------------------
+# SWIG - Build Wrapper
+#----------------------------------------------------------------------
+swig:
+	$(SWIG) $(SWIGOPTS) -o $(WRAPFILE) $(INTERFACE)
+
+
+install:
+	cp MQL.pm $(PERL_SITE)
+	if [ ! -d $(PERL_AUTO) ]; then mkdir $(PERL_AUTO); fi
+	cp MQL.so $(PERL_AUTO)
+	touch $(PERL_AUTO)/MQL.bs
+	chmod a+r  $(PERL_SITE)/MQL.pm
+	chmod a+rx $(PERL_AUTO)/MQL.so
+	chmod a+rx $(PERL_AUTO)/MQL.bs
+
+
+dist:
+
+
+clean:
+	rm -f *_wrap* *.o *.so *.doc MQL.pm core

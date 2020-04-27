@@ -1,0 +1,344 @@
+#======================================================================
+#
+# NAME:  MQL.pm
+#
+# DESC:  
+#
+#        This module is built with SWIG (www.swig.org)
+#        which generates the wrapper code for the MQL C API 
+#
+# HIST:
+#
+#======================================================================
+# Copyright 2002 - Technology Resource Group LLC as an unpublished work
+# For info email bhess@techrg.com
+#======================================================================
+use strict;
+use Config;
+use File::Basename;
+use vars qw(@EXPORT);
+
+
+
+#======================================================================
+#
+# NAME:  open
+#
+# DESC:  Connect to the eMatrix Database server
+#
+# ARGS:  bootstrap - The name of the bootstrap file
+#                    typically located in the MATRIXHOME directory
+#        path      - The path to the scripts directory where the 
+#                    mql executable resides
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#        @output - The output from the MQL call
+#        @error  - Any error messages from the MQL call
+#
+# HIST:  
+#
+#======================================================================
+sub open {
+   my ($bootstrap, $path, $mql) = @_;
+
+   my $self = undef;
+
+
+   #--------------------------------------------------
+   # Make sure that MATRIXHOME is set
+   #--------------------------------------------------
+   if($ENV{MATRIXHOME} ne "") {
+      
+      #--------------------------------------------------
+      # Use the path if it is passed in
+      # If it not passed in then use MATRIXHOME/scripts
+      #--------------------------------------------------
+      if($Config{osname} eq "MSWin32") {
+         $path = "$ENV{MATRIXHOME}/bin/winnt" if $path eq "";
+         $mql  = "mql.exe" if $mql eq "";
+      }
+      else {
+         $path = "$ENV{MATRIXHOME}/scripts" if $path eq "";
+         $mql  = "mql" if $mql eq "";
+      }
+      
+      #--------------------------------------------------
+      # Check for the bootstrap file
+      #--------------------------------------------------
+      $bootstrap = "MATRIX-R" if $bootstrap eq "";
+      
+      
+      #--------------------------------------------------
+      # Open the MQL session
+      #--------------------------------------------------
+      my $session = MQL_Open($path, $mql, $bootstrap);
+
+      if($session ne "") {
+         $self = bless { -session   => $session,
+                         -bootstrap => $bootstrap,
+                         -path      => $path,
+                         -mql       => $mql,
+                      }, "MQL";
+
+
+         # Set the output/error buffers to the default size
+         $self->set_buffer_size(0, 0);
+      }
+   }
+   else {
+      print "ERROR MQL::Open() - MATRIXHOME must be set\n";
+   }
+   
+   return $self;
+}
+
+
+
+sub _DESTROY {
+   my ($self) = @_;
+
+   $self->close();
+}
+
+
+
+#======================================================================
+#
+# NAME:  set_buffer_size
+#
+# DESC:  Set the buffer size for MQL output and error
+#
+# ARGS:  output_size
+#        error_size
+#
+# RET:   NONE
+#
+# HIST:  
+#
+#======================================================================
+sub set_buffer_size {
+   my ($self, $output_size, $error_size) = @_;
+   
+   $output_size = 0 if ! $output_size;
+   $error_size  = 0 if ! $error_size;
+
+
+   MQL_SetBufferSize($output_size, $error_size);
+}
+
+
+
+#======================================================================
+#
+# NAME:  close
+#
+# DESC:  Close the Connection to eMatrix
+#
+# ARGS:  Nothing
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#
+# HIST:  
+#
+#======================================================================
+sub close {
+   my ($self) = @_;
+
+   my $rc = 1;
+   
+   $rc = MQL_Close($self->{-session});
+
+   $self = undef;
+   
+   return $rc;
+}
+
+
+
+
+#======================================================================
+#
+# NAME:  openlog
+#
+# DESC:  Open an MQL Log file
+#
+# ARGS:  Log file to open
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#       
+# HIST:  
+#
+#======================================================================
+sub open_log {
+   my ($self) = @_;
+
+   my $rc = 0;
+
+   $rc = MQL_OpenLog($_[0]);
+
+   return $rc;
+}
+
+
+
+#======================================================================
+#
+# NAME:  closelog
+#
+# DESC:  Close the MQL Log file
+#
+# ARGS:  Nothing
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#
+# HIST:  
+#
+#======================================================================
+sub close_log {
+   my ($self) = @_;
+
+   my $rc = 0;
+
+   $rc = MQL_CloseLog();
+
+   return $rc;
+}
+
+
+
+
+#======================================================================
+#
+# NAME:  execute
+#
+# DESC:  Execute an MQL query against the eMatrix Database
+#
+# ARGS:  $mql    - The MQL call itself
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#        @output - The output from the MQL call
+#        @error  - Any error messages from the MQL call
+#
+# HIST:  
+#
+#======================================================================
+sub execute {
+   my ($self, $mql) = @_;
+   
+   my $rc = MQL_Execute($self->{-session}, $mql);
+   
+   my @output = split /\n/, $MQL::MQL_output;
+   my @error  = split /\n/, $MQL::MQL_error;
+   
+   
+   return ( -rc     => $rc, 
+            -output => [@output],
+            -error  => [@error] );
+}
+
+
+
+#======================================================================
+#
+# NAME:  set_context
+#        push_context
+#        pop_context
+#        print_context
+#
+# DESC:  Context functions - pass thru to execute
+#
+# ARGS:  $mql    - The MQL call itself
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#        @output - The output from the MQL call
+#        @error  - Any error messages from the MQL call
+#
+# HIST:  
+#
+#======================================================================
+sub set_context {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+sub push_context {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+sub pop_context {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+sub print_context {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+
+
+#======================================================================
+#
+# NAME:  checkin
+#        checkout
+#
+# DESC:  File checkin/checkout functions - pass thru to execute
+#
+# ARGS:  $mql    - The MQL call itself
+#
+# RET:   $rc     - The Return code (non-zero means error)
+#        @output - The output from the MQL call
+#        @error  - Any error messages from the MQL call
+#
+# HIST:  
+#
+#======================================================================
+sub checkin {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+sub checkout {
+   my ($self, $mql) = @_;   
+   return $self->execute($mql);
+}
+
+
+
+
+#======================================================================
+#
+# NAME:  update_lock
+#
+# DESC:  Update this Business Objects Locked info
+#
+# ARGS:  Nothing
+#
+# RET:   Nothing
+#
+# HIST:  
+#
+#======================================================================
+sub update_lock {
+   return;
+}
+
+
+#======================================================================
+#
+# NAME:  update_lock_batch
+#
+# DESC:  Update this batch of Business Objects Locked info
+#
+# ARGS:  Nothing
+#
+# RET:   Nothing
+#
+# HIST:  
+#
+#======================================================================
+sub update_lock_batch {
+   return;
+}
+

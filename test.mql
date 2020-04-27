@@ -1,0 +1,6 @@
+
+
+temp query bus Document auto_* * select *
+
+
+expand bus 15944.41471.16854.35183 recurse to 5;
